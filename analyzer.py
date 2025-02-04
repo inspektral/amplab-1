@@ -31,6 +31,12 @@ class Analyzer:
         self.discogs_instrumental = es.TensorflowPredict2D(graphFilename="./weights/voice_instrumental-discogs-effnet-1.pb", output="model/Softmax")
         self.discogs_instrumental_classes = load_classes("./model_metadata/voice_instrumental-discogs-effnet-1.json")
 
+        self.discogs_danceability = es.TensorflowPredict2D(graphFilename="./weights/danceability-discogs-effnet-1.pb", output="model/Softmax")
+        self.discogs_danceability_classes = load_classes("./model_metadata/danceability-discogs-effnet-1.json")
+
+        self.musicnn_embeddings = es.TensorflowPredictMusiCNN(graphFilename="./weights/msd-musicnn-1.pb", output="model/dense/BiasAdd")
+        self.emomusic = es.TensorflowPredict2D(graphFilename="./weights/emomusic-msd-musicnn-2.pb", output="model/Identity")
+        self.emomusic_classes = load_classes("./model_metadata/emomusic-msd-musicnn-2.json")
 
     def analyze(self, audio_file_path):
         results = {}
@@ -56,5 +62,23 @@ class Analyzer:
         instrumental = np.mean(self.discogs_instrumental(discogs_embeddings), axis=0)
         instrumental_class_index = int(np.argmax(instrumental))
         results["instrumental"] = self.discogs_instrumental_classes[instrumental_class_index]
+
+        dancebility = np.mean(self.discogs_danceability(discogs_embeddings), axis=0)
+        danceability_class_index = int(np.argmax(dancebility))
+        results["danceability"] = self.discogs_danceability_classes[danceability_class_index]
+
+        musicnn_embeddings = self.musicnn_embeddings(mono_audio)
+        print(f"Musicnn embeddings shape: {musicnn_embeddings.shape}")   
+        results["musicnn_embeddings_mean"] = np.mean(musicnn_embeddings, axis=0).tolist()
+
+        emomusic = np.mean(self.emomusic(musicnn_embeddings), axis=0)
+        print(f"Emomusic shape: {emomusic.shape}")
+
+        for i, classes in enumerate(self.emomusic_classes):
+            results[classes] = emomusic[i]
+        
+
+        results["analyzed"] = True
+
 
         return results

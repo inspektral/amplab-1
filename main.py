@@ -9,10 +9,11 @@ def main():
     analyzer = Analyzer()
     
     for index, row in df.iterrows():
+
         print(f"Analyzing file: {row['path']}")
         results = analyzer.analyze(row['path'])
         
-        print(f"Results: {results}")
+        # print(f"Results: {results}")
         for key in results:
             if isinstance(results[key], list):
                 df.loc[index, key] = json.dumps(results[key])
