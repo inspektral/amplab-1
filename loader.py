@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 import yaml
 import os
 
@@ -12,22 +11,23 @@ def load_config(verbose=False):
 
     return config
 
-def init_dataset(config):
+def init_dataset(config, verbose=False):
+    supported_formats = ('mp3', 'wav', 'flac', 'm4a')
     dataset_path = config['dataset_path']
-    df = pd.DataFrame()
+    list_files = []
 
-    for root, dirs, files in os.walk(dataset_path):
+    for root, _, files in os.walk(dataset_path):
         for file in files:
-            print(file)
-            if file.endswith('.mp3'):
-                df = pd.concat([df, pd.DataFrame({'file': file.split('.')[:-1], 'path': [os.path.join(root, file)]})])
+            if verbose:
+                print(f"Found file: {file}")
+            if file.split('.')[-1] in supported_formats:
+                list_files.append({'id': file.split('.')[0], 'path': os.path.join(root, file)})
                 
-    
-    return df
+    return pd.DataFrame(list_files)
 
 def main():
     config = load_config(True)
-    df = init_dataset(config)
+    df = init_dataset(config, True)
     print(df.head())
 
 if __name__ == '__main__':
