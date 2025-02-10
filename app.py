@@ -2,9 +2,11 @@ import os.path
 import random
 import streamlit as st
 import pandas
+import numpy as np
+import json
 
 
-m3u_filepaths_file = 'playlists/streamlit.m3u8'
+m3u_filepaths_file = 'playlists/'
 ESSENTIA_ANALYSIS_PATH = 'results.csv'
 
 
@@ -72,9 +74,6 @@ with st.sidebar:
     arousal_select = st.slider('Select by arousal:', min_value=0.0, max_value=10.0, value=(0.0, 10.0))
     valence_select = st.slider('Select by valence:', min_value=0.0, max_value=10.0, value=(0.0, 10.0))
 
-
-display_columns = ['style', 'bpm', 'key_temperley', 'scale_temperley', 'loudness', 'instrumental', 'danceability', 'arousal', 'valence']
-
 filtered_df = filter_analysis(
     audio_analysis, 
     selected_styles, 
@@ -87,18 +86,49 @@ filtered_df = filter_analysis(
     danceable_select
     )
 
-st.dataframe(filtered_df[display_columns], use_container_width=True)
 
-st.write('### 🔀 Generate playlist')
-col1, col2, col3, col4 = st.columns([1,1,1, 1])
+filtered_df['Select'] = False
+
+display_columns = ['Select', 'style', 'bpm', 'key_temperley', 'scale_temperley', 'loudness', 'instrumental', 'danceability', 'arousal', 'valence']
+
+# Display interactive dataframe with selection
+selected_rows = st.data_editor(
+    filtered_df[display_columns],
+    use_container_width=True,
+    num_rows="dynamic",
+    hide_index=True,  # Hide the empty left column
+    column_config={
+        "Select": st.column_config.CheckboxColumn(
+            "Select",
+            help="Select track to preview",
+            default=False,
+        )
+    }
+)
+
+# Show preview for selected track
+selected_indices = []
+
+if "Select" in selected_rows:
+    selected_indices = [i for i, x in enumerate(selected_rows["Select"]) if x]
+    if selected_indices:
+        selected_tracks = filtered_df.iloc[selected_indices]
+        for i, selected_track in selected_tracks.iterrows():
+            st.audio(selected_track['path'], format="audio/mp3", start_time=0)
+
+st.write('## Save playlist from filters')
+col1, col2, col3, col4, col5= st.columns([1,1,1, 1, 1])
 col1.write("Maximum number of tracks (0 for all):")
 max_tracks = col2.number_input('max tracks', min_value=0, value=0, label_visibility='collapsed')
 shuffle = col3.checkbox('Random shuffle')
-run = col4.button('RUN')
+name = col4.text_input('Playlist name', 'My Playlist', label_visibility='collapsed')
+save = col5.button('SAVE PLAYLIST')
 
-if run:
-    st.write('## 🔊 Results')
+if save:
+    st.write('## 🔊 PLAYLIST SAVED')
     mp3s = list(filtered_df.path)
+
+    playlist_path = os.path.join(m3u_filepaths_file, f'{name}.m3u')
 
     if max_tracks:
         mp3s = mp3s[:max_tracks]
@@ -108,11 +138,31 @@ if run:
         random.shuffle(mp3s)
         st.write('Applied random shuffle.')
 
-    with open(m3u_filepaths_file, 'w') as f:
+    with open(playlist_path, 'w') as f:
         f.write('\n'.join(mp3s))
-        st.write(f'Stored M3U playlist (local filepaths) to `{m3u_filepaths_file}`.')
+        st.write(f'Stored M3U playlist (local filepaths) to `{playlist_path}`')
 
-    st.write('Audio previews for the first 10 results:')
-    for mp3 in mp3s[:10]:
-        st.audio(mp3, format="audio/mp3", start_time=0)
+st.write('## Find similar tracks')
+
+
+selected_track = st.selectbox('Select track:', filtered_df.iloc[selected_indices]['path'])
+
+search = st.button('SEARCH')
+
+
+if search:
+    track_embedding = json.loads(filtered_df[filtered_df['path'] == selected_track].iloc[0]['discogs_embeddings_mean'])
+    track_embedding = np.array(track_embedding)
+
+    filtered_df['similarity'] = filtered_df['discogs_embeddings_mean'].apply(
+        lambda x: np.dot(np.array(json.loads(x)), track_embedding)
+    )
+    
+    filtered_df_similar = filtered_df.sort_values('similarity', ascending=False)
+    st.dataframe(filtered_df_similar[['path', 'similarity']].head(10), use_container_width=True)
+
+    st.write('## 🔊 SIMILAR TRACKS')
+    for i, selected_track in filtered_df_similar.head(10).iterrows():
+        st.audio(selected_track['path'], format="audio/mp3", start_time=0)
+
 
