@@ -16,8 +16,8 @@ def load_essentia_analysis():
 def filter_analysis(df, style_select, bpm_range,  key_select, scale_select, arousal_select, valence_select, instrumental_select=None, danceable_select=None):
     filtered_df = df[df['style'].isin(style_select)]
     filtered_df = filtered_df[(filtered_df['bpm'] >= bpm_range[0]) & (filtered_df['bpm'] <= bpm_range[1])]
-    filtered_df = filtered_df[filtered_df['key_temperley'].isin(key_select)]
-    filtered_df = filtered_df[filtered_df['scale_temperley'].isin(scale_select)]
+    filtered_df = filtered_df[filtered_df['key_krumhansl'].isin(key_select)]
+    filtered_df = filtered_df[filtered_df['scale_krumhansl'].isin(scale_select)]
     filtered_df = filtered_df[(filtered_df['arousal'] >= arousal_select[0]) & (filtered_df['arousal'] <= arousal_select[1])]
     filtered_df = filtered_df[(filtered_df['valence'] >= valence_select[0]) & (filtered_df['valence'] <= valence_select[1])]
     if instrumental_select is not None:
@@ -41,8 +41,8 @@ style_counts = audio_analysis['style'].value_counts().reset_index()
 style_possible = audio_analysis['style'].unique()
 style_counts.columns = ['Style', 'Count']
 
-keys_possible = audio_analysis['key_temperley'].unique()
-scales_possible = audio_analysis['scale_temperley'].unique()
+keys_possible = audio_analysis['key_krumhansl'].unique()
+scales_possible = audio_analysis['scale_krumhansl'].unique()
 
 
 with st.sidebar:
@@ -89,7 +89,7 @@ filtered_df = filter_analysis(
 
 filtered_df['Select'] = False
 
-display_columns = ['Select', 'style', 'bpm', 'key_temperley', 'scale_temperley', 'loudness', 'instrumental', 'danceability', 'arousal', 'valence']
+display_columns = ['Select', 'style', 'bpm', 'key_krumhansl', 'scale_krumhansl', 'loudness', 'instrumental', 'danceability', 'arousal', 'valence']
 
 # Display interactive dataframe with selection
 selected_rows = st.data_editor(
