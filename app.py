@@ -116,8 +116,10 @@ if "Select" in selected_rows:
         for i, selected_track in selected_tracks.iterrows():
             st.audio(selected_track['path'], format="audio/mp3", start_time=0)
 
-st.write('## Save playlist from filters')
-col1, col2, col3, col4, col5= st.columns([1,1,1, 1, 1])
+
+
+st.write('### Save filter playlist')
+col0, col1, col2, col3, col4, col5, col6 = st.columns([2,1,1,1,1,1,1])
 col1.write("Maximum number of tracks (0 for all):")
 max_tracks = col2.number_input('max tracks', min_value=0, value=0, label_visibility='collapsed')
 shuffle = col3.checkbox('Random shuffle')
@@ -125,7 +127,8 @@ name = col4.text_input('Playlist name', 'My Playlist', label_visibility='collaps
 save = col5.button('SAVE PLAYLIST')
 
 if save:
-    st.write('## 🔊 PLAYLIST SAVED')
+    st.write('saving playlist...')
+
     mp3s = list(filtered_df.path)
 
     playlist_path = os.path.join(m3u_filepaths_file, f'{name}.m3u')
@@ -142,27 +145,43 @@ if save:
         f.write('\n'.join(mp3s))
         st.write(f'Stored M3U playlist (local filepaths) to `{playlist_path}`')
 
-st.write('## Find similar tracks')
+st.write('### Search for similar tracks')
 
+col0, col1, col2= st.columns([1, 1, 1])
 
-selected_track = st.selectbox('Select track:', filtered_df.iloc[selected_indices]['path'])
-
-search = st.button('SEARCH')
+col0.write('Select a track to search for similar tracks')
+selected_track = col1.selectbox('Select track:', filtered_df.iloc[selected_indices]['path'], label_visibility='collapsed')
+search = col2.button('SEARCH')
 
 
 if search:
-    track_embedding = json.loads(filtered_df[filtered_df['path'] == selected_track].iloc[0]['discogs_embeddings_mean'])
-    track_embedding = np.array(track_embedding)
+    track_embedding_discogs = json.loads(filtered_df[filtered_df['path'] == selected_track].iloc[0]['discogs_embeddings_mean'])
+    track_embedding_discogs = np.array(track_embedding_discogs)
 
-    filtered_df['similarity'] = filtered_df['discogs_embeddings_mean'].apply(
-        lambda x: np.dot(np.array(json.loads(x)), track_embedding)
+    track_embeddig_musicnn = json.loads(filtered_df[filtered_df['path'] == selected_track].iloc[0]['musicnn_embeddings_mean'])
+    track_embeddig_musicnn = np.array(track_embeddig_musicnn)
+
+    audio_analysis['discogs_similarity'] = audio_analysis['discogs_embeddings_mean'].apply(
+        lambda x: np.dot(np.array(json.loads(x)), track_embedding_discogs)
+    )
+    audio_analysis['musicnn_similarity'] = audio_analysis['musicnn_embeddings_mean'].apply(
+        lambda x: np.dot(np.array(json.loads(x)), track_embeddig_musicnn)
     )
     
-    filtered_df_similar = filtered_df.sort_values('similarity', ascending=False)
-    st.dataframe(filtered_df_similar[['path', 'similarity']].head(10), use_container_width=True)
+    filtered_df_similar_discogs = audio_analysis.sort_values('discogs_similarity', ascending=False)
+    filtered_df_similar_musicnn = audio_analysis.sort_values('musicnn_similarity', ascending=False)
 
     st.write('## 🔊 SIMILAR TRACKS')
-    for i, selected_track in filtered_df_similar.head(10).iterrows():
-        st.audio(selected_track['path'], format="audio/mp3", start_time=0)
+    
+    col1, col2 = st.columns([1, 1])
+    col1.write('Discogs Similarity')
+    col2.write('Musicnn Similarity')
+    col1.dataframe(filtered_df_similar_discogs[['path', 'discogs_similarity']].head(10), use_container_width=True)
+    col2.dataframe(filtered_df_similar_musicnn[['path', 'musicnn_similarity']].head(10), use_container_width=True)
 
+    for i, selected_track in filtered_df_similar_discogs.head(10).iterrows():
+        col1.audio(selected_track['path'], format="audio/mp3", start_time=0)
+
+    for i, selected_track in filtered_df_similar_musicnn.head(10).iterrows():
+        col2.audio(selected_track['path'], format="audio/mp3", start_time=0)
 
